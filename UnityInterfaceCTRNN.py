@@ -22,14 +22,23 @@ ma_poca_opp = True  # Run training against ma-poca?
 max_generations = 1  # Max number of generations
 save_interval = 25
 checkpoint = "checkpoints/NEAT-checkpoint-2526"  # Checkpoint name
-genome_to_load = 'best_genome2500.pkl'  # Genome name (challenge)
-save_genome_dest = 'result/ctrnn/best_genome.pkl'  # Save destination once the algorithm finishes
-save_training_progress_prefix = 'result/ctrnn/fitness/'
+genome_to_load = "best_genome2500.pkl"  # Genome name (challenge)
+save_genome_dest = (
+    "result/ctrnn/best_genome.pkl"  # Save destination once the algorithm finishes
+)
+save_training_progress_prefix = "result/ctrnn/fitness/"
 fixed_policy = None  # The actual fixed policy
-best_genome_current_generation = None  # Continually saving the best genome for training progress when exiting
+best_genome_current_generation = (
+    None  # Continually saving the best genome for training progress when exiting
+)
 
 if built_game:
-    env = UE(seed=1, worker_id=6, side_channels=[], file_name="Builds/72MA-POCA/DodgeBallEnv.exe")
+    env = UE(
+        seed=1,
+        worker_id=6,
+        side_channels=[],
+        file_name="Builds/72MA-POCA/DodgeBallEnv.exe",
+    )
 else:
     env = UE(seed=1, side_channels=[])
 
@@ -59,10 +68,14 @@ if show_prints:
 
 # Handles the exit by closing the unity environment to avoid _communicator errors.
 def exit_handler():
-    visualize.plot_stats(stats, view=True, filename="result/ctrnn/on_exit/recurrent-fitness.svg")
-    visualize.plot_species(stats, view=True, filename="result/ctrnn/on_exit/recurrent-speciation.svg")
+    visualize.plot_stats(
+        stats, view=True, filename="result/ctrnn/on_exit/recurrent-fitness.svg"
+    )
+    visualize.plot_species(
+        stats, view=True, filename="result/ctrnn/on_exit/recurrent-speciation.svg"
+    )
     # Save best genome.
-    with open('result/ctrnn/on_exit/best_genome.pkl', 'wb') as w:
+    with open("result/ctrnn/on_exit/best_genome.pkl", "wb") as w:
         pickle.dump(best_genome_current_generation, w)
     print("EXITING")
     env.close()
@@ -73,9 +86,15 @@ atexit.register(exit_handler)
 
 # Save training progress to files
 def save_progress(statistics):
-    statistics.save_genome_fitness(filename=save_training_progress_prefix+"genome_fitness.csv")
-    statistics.save_species_count(filename=save_training_progress_prefix+"species_count.csv")
-    statistics.save_species_fitness(filename=save_training_progress_prefix+"species_fitness.csv")
+    statistics.save_genome_fitness(
+        filename=save_training_progress_prefix + "genome_fitness.csv"
+    )
+    statistics.save_species_count(
+        filename=save_training_progress_prefix + "species_count.csv"
+    )
+    statistics.save_species_fitness(
+        filename=save_training_progress_prefix + "species_fitness.csv"
+    )
 
 
 def run_agent(genomes, cfg):
@@ -92,7 +111,9 @@ def run_agent(genomes, cfg):
     decision_steps = list(decision_steps_blue) + list(decision_steps_purple)
     purple_team = list(decision_steps_purple).copy()
 
-    agent_to_local_map = {}  # For mapping the increasing agent_ids to a interval the same size as number of agents
+    agent_to_local_map = (
+        {}
+    )  # For mapping the increasing agent_ids to a interval the same size as number of agents
     local_to_agent_map = {}  # Mapping local index to agent index
     id_count = 0
     for step in decision_steps:
@@ -127,12 +148,18 @@ def run_agent(genomes, cfg):
     while not done:
 
         # Store actions for each agent with 5 actions per agent (3 continuous and 2 discrete)
-        actions = np.zeros(shape=(agent_count, 5))  # 23 in size because of the agent IDs going up to 22.
+        actions = np.zeros(
+            shape=(agent_count, 5)
+        )  # 23 in size because of the agent IDs going up to 22.
 
         # Concatenate all the observation data BESIDES obs number 3 (OtherAgentsData)
-        nn_input = np.zeros(shape=(agent_count, 364))  # 23 in size because of the agent IDs going up to 22.
+        nn_input = np.zeros(
+            shape=(agent_count, 364)
+        )  # 23 in size because of the agent IDs going up to 22.
 
-        for agent in range(agent_count):  # Collect observations from the agents requesting input
+        for agent in range(
+            agent_count
+        ):  # Collect observations from the agents requesting input
             if local_to_agent_map[agent] in decision_steps_purple:
                 decision_steps = decision_steps_purple
             elif local_to_agent_map[agent] in decision_steps_blue:
@@ -141,53 +168,76 @@ def run_agent(genomes, cfg):
                 continue  # Does not exist in any decision steps, run next agent.
 
             step = decision_steps[local_to_agent_map[agent]]
-            nn_input[agent] = np.concatenate((step.obs[0], step.obs[1], step.obs[3], step.obs[4], step.obs[5]))
+            nn_input[agent] = np.concatenate(
+                (step.obs[0], step.obs[1], step.obs[3], step.obs[4], step.obs[5])
+            )
 
         start = time.time()
         # Fetches actions by feed forward pass through the NNs
-        if (len(decision_steps_purple) > 0) and (len(decision_steps_blue) > 0):  # More steps to take?
+        if (len(decision_steps_purple) > 0) and (
+            len(decision_steps_blue) > 0
+        ):  # More steps to take?
             for agent in range(agent_count):  # Iterates through all the agent indexes
                 if (local_to_agent_map[agent] in decision_steps_purple) or (
-                        local_to_agent_map[agent] in decision_steps_blue):  # Is agent ready?
+                    local_to_agent_map[agent] in decision_steps_blue
+                ):  # Is agent ready?
 
                     # If fixed opponent, purple is controlled by fixed policy
-                    if (local_to_agent_map[agent] in decision_steps_blue) or not fixed_opponent:
-                        action = policies[agent].activate(nn_input[agent])  # FPass for purple and blue
+                    if (
+                        local_to_agent_map[agent] in decision_steps_blue
+                    ) or not fixed_opponent:
+                        action = policies[agent].activate(
+                            nn_input[agent]
+                        )  # FPass for purple and blue
                     elif fixed_opponent:
                         action = fixed_policy.activate(nn_input[agent])
                     actions[agent] = action  # Save action in array of actions
 
         end = time.time()
-        time_spent_activating = (end - start)
+        time_spent_activating = end - start
 
         # Clip discrete values to 0 or 1
         actions[:, 3] = (actions[:, 3] > 0).astype(int)
         actions[:, 4] = (actions[:, 4] > 0).astype(int)
 
         # Set actions for each agent (convert from ndarray to ActionTuple)
-        if len(decision_steps_purple.agent_id) != 0 and len(decision_steps_blue.agent_id) != 0:
+        if (
+            len(decision_steps_purple.agent_id) != 0
+            and len(decision_steps_blue.agent_id) != 0
+        ):
             for agent in range(agent_count):
                 if (local_to_agent_map[agent] in decision_steps_purple) or (
-                        local_to_agent_map[agent] in decision_steps_blue):  # Is agent ready?
+                    local_to_agent_map[agent] in decision_steps_blue
+                ):  # Is agent ready?
                     # Creating an action tuple
                     continuous_actions = [actions[agent, 0:3]]
                     discrete_actions = [actions[agent, 3:5]]
-                    action_tuple = ActionTuple(discrete=np.array(discrete_actions),
-                                               continuous=np.array(continuous_actions))
+                    action_tuple = ActionTuple(
+                        discrete=np.array(discrete_actions),
+                        continuous=np.array(continuous_actions),
+                    )
 
                     # Applying the action to respective agents on both teams
                     if local_to_agent_map[agent] in decision_steps_purple:
-                        env.set_action_for_agent(behavior_name=behavior_name_purple, agent_id=local_to_agent_map[agent],
-                                                 action=action_tuple)
+                        env.set_action_for_agent(
+                            behavior_name=behavior_name_purple,
+                            agent_id=local_to_agent_map[agent],
+                            action=action_tuple,
+                        )
                     elif local_to_agent_map[agent] in decision_steps_blue:
-                        env.set_action_for_agent(behavior_name=behavior_name_blue, agent_id=local_to_agent_map[agent],
-                                                 action=action_tuple)
+                        env.set_action_for_agent(
+                            behavior_name=behavior_name_blue,
+                            agent_id=local_to_agent_map[agent],
+                            action=action_tuple,
+                        )
 
         # Move the simulation forward
         env.step()  # Does not mean 1 step in Unity. Runs until next decision step
 
         # Get the new simulation results
-        decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
+        decision_steps_purple, terminal_steps_purple = env.get_steps(
+            behavior_name_purple
+        )
         decision_steps_blue, terminal_steps_blue = env.get_steps(behavior_name_blue)
 
         # Adding agents that has reached terminal steps to removed agents
@@ -216,7 +266,9 @@ def run_agent(genomes, cfg):
             elif local_agent in decision_steps_blue:
                 reward += decision_steps_blue[local_agent].reward
 
-            if fixed_opponent:  # Add reward as long as the agent is not purple in fixed opponent mode.
+            if (
+                fixed_opponent
+            ):  # Add reward as long as the agent is not purple in fixed opponent mode.
                 if not (local_agent in purple_team):
                     try:
                         genomes[agent][1].fitness += reward
@@ -228,9 +280,13 @@ def run_agent(genomes, cfg):
                     total_reward += reward  # Testing purposes (console logging)
                     if reward > 1.9:
                         print(
-                            " - Agent: " + str(agent) + " Fitness: " + str(
-                                genomes[agent][1].fitness) + " Reward: " + str(
-                                reward))
+                            " - Agent: "
+                            + str(agent)
+                            + " Fitness: "
+                            + str(genomes[agent][1].fitness)
+                            + " Reward: "
+                            + str(reward)
+                        )
                     if reward > 0.2:
                         purple_wins += 1
             else:
@@ -246,25 +302,46 @@ def run_agent(genomes, cfg):
         if not (len(decision_steps_blue) + len(decision_steps_purple)) == 0:
             # Reward status
             sys.stdout.write(
-                "\rCollective reward: %.2f | Blue left: %s | Purple left: %d (%d WINS) | Activation Time: %.2f" % (
+                "\rCollective reward: %.2f | Blue left: %s | Purple left: %d (%d WINS) | Activation Time: %.2f"
+                % (
                     total_reward,
                     len(decision_steps_blue),
                     len(decision_steps_purple),
                     purple_wins,
-                    time_spent_activating))
+                    time_spent_activating,
+                )
+            )
             sys.stdout.flush()
 
     # Save the best genome from this generation:
     global best_genome_current_generation
-    best_genome_current_generation = max(genomes, key=lambda x: x[1].fitness)  # Save the best genome from this gen
+    best_genome_current_generation = max(
+        genomes, key=lambda x: x[1].fitness
+    )  # Save the best genome from this gen
 
     # Save training progress regularely
     if generation % save_interval == 0:
         print("\nSAVED PLOTS | GENERATION " + str(generation))
-        visualize.plot_stats(stats, view=True, filename="result/ctrnn/in_progress/recurrent-fitness"+str(generation)+".svg", label="CTRNN")
-        visualize.plot_species(stats, view=True, filename="result/ctrnn/in_progress/recurrent-speciation"+str(generation)+".svg", label="CTRNN")
+        visualize.plot_stats(
+            stats,
+            view=True,
+            filename="result/ctrnn/in_progress/recurrent-fitness"
+            + str(generation)
+            + ".svg",
+            label="CTRNN",
+        )
+        visualize.plot_species(
+            stats,
+            view=True,
+            filename="result/ctrnn/in_progress/recurrent-speciation"
+            + str(generation)
+            + ".svg",
+            label="CTRNN",
+        )
         save_progress(stats)
-        with open('result/ctrnn/in_progress/best_genome'+str(generation)+'.pkl', 'wb') as f:
+        with open(
+            "result/ctrnn/in_progress/best_genome" + str(generation) + ".pkl", "wb"
+        ) as f:
             pickle.dump(best_genome_current_generation, f)
 
     # Clean the environment for a new generation.
@@ -285,7 +362,9 @@ def run_agent_mapoca(genomes, cfg):
     decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
     decision_steps = list(decision_steps_purple)
 
-    agent_to_local_map = {}  # For mapping the increasing agent_ids to a interval the same size as number of agents
+    agent_to_local_map = (
+        {}
+    )  # For mapping the increasing agent_ids to a interval the same size as number of agents
     local_to_agent_map = {}  # Mapping local index to agent index
     id_count = 0
     for step in decision_steps:
@@ -318,19 +397,27 @@ def run_agent_mapoca(genomes, cfg):
     while not done:
 
         # Store actions for each agent with 5 actions per agent (3 continuous and 2 discrete)
-        actions = np.zeros(shape=(agent_count, 5))  # 23 in size because of the agent IDs going up to 22.
+        actions = np.zeros(
+            shape=(agent_count, 5)
+        )  # 23 in size because of the agent IDs going up to 22.
 
         # Concatenate all the observation data BESIDES obs number 3 (OtherAgentsData)
-        nn_input = np.zeros(shape=(agent_count, 364))  # 23 in size because of the agent IDs going up to 22.
+        nn_input = np.zeros(
+            shape=(agent_count, 364)
+        )  # 23 in size because of the agent IDs going up to 22.
 
-        for agent in range(agent_count):  # Collect observations from the agents requesting input
+        for agent in range(
+            agent_count
+        ):  # Collect observations from the agents requesting input
             if local_to_agent_map[agent] in decision_steps_purple:
                 decision_steps = decision_steps_purple
             else:
                 continue  # Does not exist in any decision steps, run next agent.
 
             step = decision_steps[local_to_agent_map[agent]]
-            nn_input[agent] = np.concatenate((step.obs[0], step.obs[1], step.obs[3], step.obs[4], step.obs[5]))
+            nn_input[agent] = np.concatenate(
+                (step.obs[0], step.obs[1], step.obs[3], step.obs[4], step.obs[5])
+            )
 
         start = time.time()
 
@@ -342,7 +429,7 @@ def run_agent_mapoca(genomes, cfg):
                 actions[agent] = policy.activate(nn_input[agent])
 
         end = time.time()
-        time_spent_activating = (end - start)
+        time_spent_activating = end - start
 
         # Clip discrete values to 0 or 1
         actions[:, 3] = (actions[:, 3] > 0).astype(int)
@@ -351,23 +438,32 @@ def run_agent_mapoca(genomes, cfg):
         # Set actions for each agent (convert from ndarray to ActionTuple)
         if len(decision_steps_purple.agent_id) != 0:
             for agent in range(agent_count):
-                if local_to_agent_map[agent] in decision_steps_purple:  # Is agent ready?
+                if (
+                    local_to_agent_map[agent] in decision_steps_purple
+                ):  # Is agent ready?
                     # Creating an action tuple
                     continuous_actions = [actions[agent, 0:3]]
                     discrete_actions = [actions[agent, 3:5]]
-                    action_tuple = ActionTuple(discrete=np.array(discrete_actions),
-                                               continuous=np.array(continuous_actions))
+                    action_tuple = ActionTuple(
+                        discrete=np.array(discrete_actions),
+                        continuous=np.array(continuous_actions),
+                    )
 
                     # Applying the action to respective agents on both teams
                     if local_to_agent_map[agent] in decision_steps_purple:
-                        env.set_action_for_agent(behavior_name=behavior_name_purple, agent_id=local_to_agent_map[agent],
-                                                 action=action_tuple)
+                        env.set_action_for_agent(
+                            behavior_name=behavior_name_purple,
+                            agent_id=local_to_agent_map[agent],
+                            action=action_tuple,
+                        )
 
         # Move the simulation forward
         env.step()  # Does not mean 1 step in Unity. Runs until next decision step
 
         # Get the new simulation results
-        decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
+        decision_steps_purple, terminal_steps_purple = env.get_steps(
+            behavior_name_purple
+        )
 
         # Adding agents that has reached terminal steps to removed agents
         if terminal_steps_purple:
@@ -389,8 +485,13 @@ def run_agent_mapoca(genomes, cfg):
             total_reward += reward  # Testing purposes (console logging)
             if reward > 1.9:
                 print(
-                    "Agent: " + str(agent) + " Fitness: " + str(genomes[agent][1].fitness) + " Reward: " + str(
-                        reward))
+                    "Agent: "
+                    + str(agent)
+                    + " Fitness: "
+                    + str(genomes[agent][1].fitness)
+                    + " Reward: "
+                    + str(reward)
+                )
 
         # When whole teams are eliminated, end the generation. Should not be less than half the players left
         if len(removed_agents) >= agent_count:
@@ -401,21 +502,39 @@ def run_agent_mapoca(genomes, cfg):
         if not len(decision_steps_purple) == 0:
             # Reward status
             sys.stdout.write(
-                "\rCollective reward: %.2f | Purple left: %d | Activation Time: %.2f" % (total_reward,
-                                                                                         len(decision_steps_purple),
-                                                                                         time_spent_activating))
+                "\rCollective reward: %.2f | Purple left: %d | Activation Time: %.2f"
+                % (total_reward, len(decision_steps_purple), time_spent_activating)
+            )
             sys.stdout.flush()
 
     # Save the best genome from this generation:
     global best_genome_current_generation
-    best_genome_current_generation = max(genomes, key=lambda x: x[1].fitness)  # Save the best genome from this gen
+    best_genome_current_generation = max(
+        genomes, key=lambda x: x[1].fitness
+    )  # Save the best genome from this gen
 
     # Save training progress regularely
     if generation % save_interval == 0:
-        visualize.plot_stats(stats, view=True, filename="result/ctrnn/in_progress/feedforward-fitness"+str(generation)+".svg", label="CTRNN")
-        visualize.plot_species(stats, view=True, filename="result/ctrnn/in_progress/feedforward-speciation"+str(generation)+".svg", label="CTRNN")
+        visualize.plot_stats(
+            stats,
+            view=True,
+            filename="result/ctrnn/in_progress/feedforward-fitness"
+            + str(generation)
+            + ".svg",
+            label="CTRNN",
+        )
+        visualize.plot_species(
+            stats,
+            view=True,
+            filename="result/ctrnn/in_progress/feedforward-speciation"
+            + str(generation)
+            + ".svg",
+            label="CTRNN",
+        )
         save_progress(stats)
-        with open('result/ctrnn/in_progress/best_genome'+str(generation)+'.pkl', 'wb') as f:
+        with open(
+            "result/ctrnn/in_progress/best_genome" + str(generation) + ".pkl", "wb"
+        ) as f:
             pickle.dump(best_genome_current_generation, f)
 
     # Clean the environment for a new generation.
@@ -446,11 +565,15 @@ def run_agent_sim(genome, cfg):
 
         while not done:
             # Concatenate all the observation data BESIDES obs number 3 (OtherAgentsData)
-            nn_input = np.concatenate((decision_steps[agent_id].obs[0],
-                                       decision_steps[agent_id].obs[1],
-                                       decision_steps[agent_id].obs[3],
-                                       decision_steps[agent_id].obs[4],
-                                       decision_steps[agent_id].obs[5]))
+            nn_input = np.concatenate(
+                (
+                    decision_steps[agent_id].obs[0],
+                    decision_steps[agent_id].obs[1],
+                    decision_steps[agent_id].obs[3],
+                    decision_steps[agent_id].obs[4],
+                    decision_steps[agent_id].obs[5],
+                )
+            )
             # print(nn_input)
             action = np.zeros(shape=364)  # Init
             # Checks if the
@@ -466,11 +589,17 @@ def run_agent_sim(genome, cfg):
                 # Creating an action tuple
                 continuous_actions = [action[0:3]]
                 discrete_actions = [action[3:5]]
-                action_tuple = ActionTuple(discrete=np.array(discrete_actions), continuous=np.array(continuous_actions))
+                action_tuple = ActionTuple(
+                    discrete=np.array(discrete_actions),
+                    continuous=np.array(continuous_actions),
+                )
 
                 # Applying the action
-                env.set_action_for_agent(behavior_name=behavior_name_purple, agent_id=agent_id,
-                                         action=action_tuple)
+                env.set_action_for_agent(
+                    behavior_name=behavior_name_purple,
+                    agent_id=agent_id,
+                    action=action_tuple,
+                )
 
             # Move the simulation forward
             env.step()
@@ -491,8 +620,13 @@ def run_agent_sim(genome, cfg):
 if __name__ == "__main__":
     # Set configuration file
     config_path = "./config_ctrnn"
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                                neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        config_path,
+    )
     if not sim_1_agent:
         # Create core evolution algorithm class
         if load_from_checkpoint:  # Load from checkpoint
@@ -502,7 +636,13 @@ if __name__ == "__main__":
             p = neat.Population(config)
 
         # For saving checkpoints during training    Every 25th generation or 20 minutes
-        p.add_reporter(neat.Checkpointer(generation_interval=25, time_interval_seconds=1200, filename_prefix='checkpoints/ctrnn/NEAT-checkpoint-'))
+        p.add_reporter(
+            neat.Checkpointer(
+                generation_interval=25,
+                time_interval_seconds=1200,
+                filename_prefix="checkpoints/ctrnn/NEAT-checkpoint-",
+            )
+        )
 
         # Add reporter for fancy statistical result
         p.add_reporter(neat.StdOutReporter(True))
@@ -520,23 +660,51 @@ if __name__ == "__main__":
         best_genome = p.run(evaluation, max_generations)
 
         # Save best genome.
-        with open(save_genome_dest, 'wb') as f:
+        with open(save_genome_dest, "wb") as f:
             pickle.dump(best_genome, f)
 
         print(best_genome)
 
-        visualize.plot_stats(stats, view=True, filename="result/ctrnn/recurrent-fitness.svg", label="CTRNN")
-        visualize.plot_species(stats, view=True, filename="result/ctrnn/recurrent-speciation.svg", label="CTRNN")
+        visualize.plot_stats(
+            stats,
+            view=True,
+            filename="result/ctrnn/recurrent-fitness.svg",
+            label="CTRNN",
+        )
+        visualize.plot_species(
+            stats,
+            view=True,
+            filename="result/ctrnn/recurrent-speciation.svg",
+            label="CTRNN",
+        )
 
-        node_names = {-1: 'x', -2: 'dx', -3: 'theta', -4: 'dtheta', 0: 'control'}
+        node_names = {-1: "x", -2: "dx", -3: "theta", -4: "dtheta", 0: "control"}
         visualize.draw_net(config, best_genome, True, node_names=node_names)
 
-        visualize.draw_net(config, best_genome, view=True, node_names=node_names,
-                           filename="result/ctrnn/best_genome.gv")
-        visualize.draw_net(config, best_genome, view=True, node_names=node_names,
-                           filename="result/ctrnn/best_genome-enabled.gv", show_disabled=False)
-        visualize.draw_net(config, best_genome, view=True, node_names=node_names,
-                           filename="result/ctrnn/best_genome-enabled-pruned.gv", show_disabled=False, prune_unused=True)
+        visualize.draw_net(
+            config,
+            best_genome,
+            view=True,
+            node_names=node_names,
+            filename="result/ctrnn/best_genome.gv",
+        )
+        visualize.draw_net(
+            config,
+            best_genome,
+            view=True,
+            node_names=node_names,
+            filename="result/ctrnn/best_genome-enabled.gv",
+            show_disabled=False,
+        )
+        visualize.draw_net(
+            config,
+            best_genome,
+            view=True,
+            node_names=node_names,
+            filename="result/ctrnn/best_genome-enabled-pruned.gv",
+            show_disabled=False,
+            prune_unused=True,
+        )
 
     else:
         with open(genome_to_load, "rb") as f:
