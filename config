@@ -67,7 +67,8 @@ weight_mutate_rate      = 0.8
 weight_replace_rate     = 0.1
 
 [DefaultSpeciesSet]
-compatibility_threshold = 3.0
+compatibility_threshold = 3.0 # Individuals whose genomic distance is less than 
+# this threshold are considered to be in the same species. Defaults seems to be 3
 
 [DefaultStagnation]
 species_fitness_func = mean
