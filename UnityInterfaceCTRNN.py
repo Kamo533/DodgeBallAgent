@@ -22,7 +22,9 @@ ma_poca_opp = True  # Run training against ma-poca?
 max_generations = 1  # Max number of generations
 save_interval = 25
 checkpoint = "checkpoints/NEAT-checkpoint-2526"  # Checkpoint name
-genome_to_load = "best_genome2500.pkl"  # Genome name (challenge)
+genome_to_load = (
+    "result/best_test_genome.pkl"  # "best_genome2500.pkl"  # Genome name (challenge)
+)
 save_genome_dest = (
     "result/ctrnn/best_genome.pkl"  # Save destination once the algorithm finishes
 )
@@ -708,7 +710,7 @@ if __name__ == "__main__":
 
     else:
         with open(genome_to_load, "rb") as f:
-            genome = pickle.load(f)[1]
+            genome = pickle.load(f)  # [1]
         print(genome.fitness)
 
         run_agent_sim(genome, config)
