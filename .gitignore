@@ -1,3 +1,18 @@
 
 # Files that compiler make to shorten run time
 *.pyc
+
+# Files created from the NEAT algorithm 
+checkpoints/*
+# Check further what this is!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+result/fitness/*
+# Graphs of fitness and speciation in run
+result/in_progress/*
+# Graphs of best genome after run
+result/*.svg
+## Results during and after run
+## result/*
+# Unity timers
+Builds/5ENVSIMPLE/DodgeBallEnv_Data/ML-Agents/Timers/*
+# I think it is a graph of one of the NN, not sure, must get .gv reader
+Digraph.gv
