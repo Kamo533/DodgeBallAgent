@@ -1,7 +1,7 @@
 [NEAT]
 fitness_criterion     = mean
 fitness_threshold     = 2.16
-pop_size              = 60
+pop_size              = 72
 reset_on_extinction   = True
 
 [DefaultGenome]
@@ -29,8 +29,8 @@ compatibility_disjoint_coefficient = 1.0
 compatibility_weight_coefficient   = 0.5
 
 # connection add/remove rates
-conn_add_prob           = 0.7
-conn_delete_prob        = 0.4
+conn_add_prob           = 0.8
+conn_delete_prob        = 0.5
 
 # connection enable options
 enabled_default         = True
@@ -40,8 +40,8 @@ feed_forward            = True
 initial_connection      = partial_direct 0.5
 
 # node add/remove rates
-node_add_prob           = 0.5
-node_delete_prob        = 0.2
+node_add_prob           = 0.6
+node_delete_prob        = 0.3
 
 # network parameters
 num_hidden              = 0
@@ -69,7 +69,7 @@ weight_replace_rate     = 0.1
 [DefaultSpeciesSet]
 # Individuals whose genomic distance is less than 
 # this threshold are considered to be in the same species. Defaults seems to be 3
-compatibility_threshold = 1.5
+compatibility_threshold = 1.8
 
 [DefaultStagnation]
 species_fitness_func = mean
