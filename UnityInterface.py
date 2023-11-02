@@ -13,8 +13,8 @@ import time
 # Boolean Toggles
 built_game = True  # Is the game built into a .exe or .app
 sim_1_agent = False  # Test out a given genome specified in main.
-show_prints = True  # Show certain prints during runtime
-load_from_checkpoint = False  # Load from checkpoint
+show_prints = False  # Show certain prints during runtime
+load_from_checkpoint = True  # Load from checkpoint
 fixed_opponent = False  # Boolean toggle for fixed opponent
 ma_poca_opp = True  # Run training against ma-poca?
 
@@ -619,7 +619,6 @@ def run_agent_sim(genome, cfg):
 
 
 if __name__ == "__main__":
-    print("start of main")
 
     # Set configuration file
     config_path = "./config"
