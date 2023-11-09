@@ -9,22 +9,26 @@ from mlagents_envs.base_env import ActionTuple  # Creating a compatible action
 import numpy as np
 import atexit
 import time
+import datetime
 
 # Boolean Toggles
 built_game = True  # Is the game built into a .exe or .app
 sim_1_agent = False  # Test out a given genome specified in main.
-show_prints = False  # Show certain prints during runtime
-load_from_checkpoint = False  # Load from checkpoint
+show_prints = True  # Show certain prints during runtime
+show_plots = False  # Show plots (that pause run) during run, will anyway show at end
+load_from_checkpoint = True  # Load from checkpoint
 fixed_opponent = True  # Boolean toggle for fixed opponent
 ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
-max_generations = 40  # Max number of generations
-save_interval = 10
-checkpoint = "checkpoints/NEAT-checkpoint-7"  # Checkpoint name
-genome_to_load = "result/best_test_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
+max_generations = 72  # Max number of generations
+save_interval = 30
+checkpoint = "checkpoints/NEAT-checkpoint-369"  # Checkpoint name
+genome_to_load = (
+    "result/best_370_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
+)
 save_genome_dest = (
-    "result/best_test_genome.pkl"  # Save destination once the algorithm finishes
+    "result/best_420_genome.pkl"  # Save destination once the algorithm finishes
 )
 save_training_progress_prefix = "result/fitness/"
 fixed_policy = None  # The actual fixed policy
@@ -320,7 +324,7 @@ def run_agent(genomes, cfg):
         print("\nSAVED PLOTS | GENERATION " + str(generation))
         visualize.plot_stats(
             stats,
-            view=True,
+            view=show_plots,
             filename="result/in_progress/feedforward-fitness"
             + str(generation)
             + ".svg",
@@ -328,7 +332,7 @@ def run_agent(genomes, cfg):
         )
         visualize.plot_species(
             stats,
-            view=True,
+            view=show_plots,
             filename="result/in_progress/feedforward-speciation"
             + str(generation)
             + ".svg",
@@ -517,7 +521,7 @@ def run_agent_mapoca(genomes, cfg):
     if generation % save_interval == 0:
         visualize.plot_stats(
             stats,
-            view=True,
+            view=show_plots,
             filename="result/in_progress/feedforward-fitness"
             + str(generation)
             + ".svg",
@@ -525,7 +529,7 @@ def run_agent_mapoca(genomes, cfg):
         )
         visualize.plot_species(
             stats,
-            view=True,
+            view=show_plots,
             filename="result/in_progress/feedforward-speciation"
             + str(generation)
             + ".svg",
@@ -637,11 +641,12 @@ if __name__ == "__main__":
         else:  # Or generate new initial population
             p = neat.Population(config)
 
-        # For saving checkpoints during training    Every 25th generation or 20 minutes
+        # For saving checkpoints during training    Every 25th generation or 40 minutes
+        # print datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         p.add_reporter(
             neat.Checkpointer(
                 generation_interval=25,
-                time_interval_seconds=1200,
+                time_interval_seconds=2400,
                 filename_prefix="checkpoints/NEAT-checkpoint-",
             )
         )
