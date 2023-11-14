@@ -9,7 +9,6 @@ from mlagents_envs.base_env import ActionTuple  # Creating a compatible action
 import numpy as np
 import atexit
 import time
-import datetime
 
 # Boolean Toggles
 built_game = True  # Is the game built into a .exe or .app
@@ -21,20 +20,22 @@ fixed_opponent = True  # Boolean toggle for fixed opponent
 ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
-max_generations = 72  # Max number of generations
+max_generations = 56  # Max number of generations
 save_interval = 30
-checkpoint = "checkpoints/NEAT-checkpoint-369"  # Checkpoint name
+checkpoint = "checkpoints/NEAT-checkpoint-720"  # Checkpoint name
 genome_to_load = (
-    "result/best_370_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
+    "result/best_680_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
 )
 save_genome_dest = (
-    "result/best_420_genome.pkl"  # Save destination once the algorithm finishes
+    "result/best_770_genome.pkl"  # Save destination once the algorithm finishes
 )
 save_training_progress_prefix = "result/fitness/"
 fixed_policy = None  # The actual fixed policy
 best_genome_current_generation = (
     None  # Continually saving the best genome for training progress when exiting
 )
+
+best_genome_total = "result/best_440_genome.pkl"
 
 if built_game:
     env = UE(
@@ -124,14 +125,22 @@ def run_agent(genomes, cfg):
         local_to_agent_map[id_count] = step
         id_count += 1
 
+    print(f"\nagent_to_local_map {agent_to_local_map}")
+    print(f"\nlocal_to_agent_map {local_to_agent_map}\n")
+
     # Empty array to save all the neural networks for all agents on both teams
     policies = []
+
+    early_fitness = {}
 
     # Initialize the neural networks for each genome.
     for i, g in genomes:
         policy = neat.nn.FeedForwardNetwork.create(g, cfg)
         policies.append(policy)
+        early_fitness[i] = g.fitness
         g.fitness = 0
+        if i == 4705:
+            print("It's here (genome from 440)")
 
     print("Genomes: " + str(len(genomes)))
 
@@ -312,6 +321,9 @@ def run_agent(genomes, cfg):
                 )
             )
             sys.stdout.flush()
+
+    for i, g in genomes:
+        print(f"ID{i} before {early_fitness[i]} (type: {type(early_fitness[i])}), and after {g.fitness} (type: {type(g.fitness)})")
 
     # Save the best genome from this generation:
     global best_genome_current_generation
@@ -640,6 +652,16 @@ if __name__ == "__main__":
             print("LOADED FROM CHECKPOINT")
         else:  # Or generate new initial population
             p = neat.Population(config)
+
+        # Add good genome (early throwaway :( ))
+        with open(best_genome_total, "rb") as f:
+            to_add_genome = pickle.load(f)
+        # print(type(to_add_genome), to_add_genome.key)
+        p.population[to_add_genome.key] = to_add_genome
+        print(list(p.species.species.keys()))
+        # p.species.species[list(p.species.species.keys())[0]].add(to_add_genome)
+        p.species.speciate(p.config, p.population, p.generation)
+        print(p.species.species)
 
         # For saving checkpoints during training    Every 25th generation or 40 minutes
         # print datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
