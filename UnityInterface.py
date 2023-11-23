@@ -21,13 +21,14 @@ ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
 max_generations = 150  # Max number of generations per "run"
+env_generations = [300, 600] # what generations to switch to next environment
 save_interval = 30
 checkpoint = "checkpoints/NEAT-checkpoint-775"  # Checkpoint name
 genome_to_load = (
-    "result/best_770_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
+    "result/best_40_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
 )
 save_genome_dest = (
-    "result/best_770_genome.pkl"  # Save destination once the algorithm finishes
+    "result/best_150_genome.pkl"  # Save destination once the algorithm finishes
 )
 save_training_progress_prefix = "result/fitness/"
 fixed_policy = None  # The actual fixed policy
@@ -58,6 +59,9 @@ else:
     env_easy = UE(seed=1, side_channels=[])
 
 env_easy.reset()  # Resets the environment ready for the next simulation
+env_medium.reset()
+env_hard.reset()
+
 
 behavior_name_purple = list(env_easy.behavior_specs)[0]
 if len(list(env_easy.behavior_specs)) > 1:
@@ -111,11 +115,11 @@ def save_progress(statistics):
     )
 
 
-def run_unity_training(genomes, cfg, total_reward):
+def run_unity_training(genomes, cfg, total_reward, env):
     # Decision Steps is a list of all agents requesting a decision
     # Terminal steps is all agents that has reached a terminal state (finished)
-    decision_steps_purple, terminal_steps_purple = env_easy.get_steps(behavior_name_purple)
-    decision_steps_blue, terminal_steps_blue = env_easy.get_steps(behavior_name_blue)
+    decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
+    decision_steps_blue, terminal_steps_blue = env.get_steps(behavior_name_blue)
     decision_steps = list(decision_steps_blue) + list(decision_steps_purple)
     purple_team = list(decision_steps_purple).copy()
 
@@ -225,37 +229,32 @@ def run_unity_training(genomes, cfg, total_reward):
 
                     # Applying the action to respective agents on both teams
                     if local_to_agent_map[agent] in decision_steps_purple:
-                        env_easy.set_action_for_agent(
+                        env.set_action_for_agent(
                             behavior_name=behavior_name_purple,
                             agent_id=local_to_agent_map[agent],
                             action=action_tuple,
                         )
                     elif local_to_agent_map[agent] in decision_steps_blue:
-                        env_easy.set_action_for_agent(
+                        env.set_action_for_agent(
                             behavior_name=behavior_name_blue,
                             agent_id=local_to_agent_map[agent],
                             action=action_tuple,
                         )
 
         # Move the simulation forward
-        env_easy.step()  # Does not mean 1 step in Unity. Runs until next decision step
+        env.step()  # Does not mean 1 step in Unity. Runs until next decision step
 
         # Get the new simulation results
-        decision_steps_purple, terminal_steps_purple = env_easy.get_steps(
+        decision_steps_purple, terminal_steps_purple = env.get_steps(
             behavior_name_purple
         )
-        decision_steps_blue, terminal_steps_blue = env_easy.get_steps(behavior_name_blue)
+        decision_steps_blue, terminal_steps_blue = env.get_steps(behavior_name_blue)
 
         # Adding agents that has reached terminal steps to removed agents
         if terminal_steps_blue:
             for step in terminal_steps_blue:
                 if step not in removed_agents:
                     removed_agents.append(step)
-
-        # if terminal_steps_purple:
-        #     for step in terminal_steps_purple:
-        #         if step not in removed_agents:
-        #             removed_agents.append(step)
 
         # Collect reward
         for agent in range(agent_count):
@@ -324,7 +323,7 @@ def run_unity_training(genomes, cfg, total_reward):
             done = True
         
     # Clean the environment for a new generation.
-    env_easy.reset()
+    env.reset()
     return total_reward
 
 
@@ -340,11 +339,18 @@ def run_agent(genomes, cfg):
     for i, g in genomes:
         early_fitness[i] = g.fitness
 
+    if generation < env_generations[0]:
+        env = env_easy
+    elif generation < env_generations[1]:
+        env = env_medium
+    else:
+        env = env_hard
+
     # run run_unity_training such all agents get fitness
     temp_genomes = genomes.copy()
     need_fitness = True
     while need_fitness:
-        total_reward += run_unity_training(temp_genomes, cfg, total_reward)
+        total_reward += run_unity_training(temp_genomes, cfg, total_reward, env)
         need_fitness = False
         for _, g in temp_genomes:
             if isinstance(g.fitness, int):
@@ -667,7 +673,7 @@ def run_agent_sim(genome, cfg):
         env_easy.reset()
 
 
-if __name__ == "__main__":
+while __name__ == "__main__":
 
     # Set configuration file
     config_path = "./config"
@@ -716,13 +722,18 @@ if __name__ == "__main__":
         with open(save_genome_dest, "wb") as f:
             pickle.dump(best_genome, f)
 
-        print(best_genome)
+        # Update genome_to_load
+        genome_to_load = save_genome_dest
+        # Update save_genome_dest
+        save_genome_dest = f"result/best_{generation+max_generations}_genome.pkl"
+
+        # print(best_genome)
 
         visualize.plot_stats(
-            stats, view=True, filename="result/feedforward-fitness.svg", label="ANN"
+            stats, view=True, filename=f"result/feedforward-fitness{generation}.svg", label="ANN"
         )
         visualize.plot_species(
-            stats, view=True, filename="result/feedforward-speciation.svg", label="ANN"
+            stats, view=True, filename=f"result/feedforward-speciation{generation}.svg", label="ANN"
         )
 
         node_names = {-1: "x", -2: "dx", -3: "theta", -4: "dtheta", 0: "control"}
@@ -741,7 +752,7 @@ if __name__ == "__main__":
             view=True,
             node_names=node_names,
             filename="result/best_genome-enabled.gv",
-            show_disabled=False,
+            show_disabled=True,
         )
         visualize.draw_net(
             config,
@@ -749,7 +760,7 @@ if __name__ == "__main__":
             view=True,
             node_names=node_names,
             filename="result/best_genome-enabled-pruned.gv",
-            show_disabled=False,
+            show_disabled=True,
             prune_unused=True,
         )
 
