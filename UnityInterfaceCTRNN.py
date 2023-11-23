@@ -23,7 +23,7 @@ max_generations = 1  # Max number of generations
 save_interval = 25
 checkpoint = "checkpoints/NEAT-checkpoint-2526"  # Checkpoint name
 genome_to_load = (
-    "result/best_440_genome.pkl"  # "best_genome2500.pkl"  # Genome name (challenge)
+    "result/best_925_genome.pkl"  # "best_genome2500.pkl"  # Genome name (challenge)
 )
 save_genome_dest = (
     "result/ctrnn/best_genome.pkl"  # Save destination once the algorithm finishes
