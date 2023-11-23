@@ -20,7 +20,7 @@ fixed_opponent = True  # Boolean toggle for fixed opponent
 ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
-max_generations = 150  # Max number of generations
+max_generations = 150  # Max number of generations per "run"
 save_interval = 30
 checkpoint = "checkpoints/NEAT-checkpoint-775"  # Checkpoint name
 genome_to_load = (
@@ -36,23 +36,35 @@ best_genome_current_generation = (
 )
 
 if built_game:
-    env = UE(
+    env_easy = UE(
         seed=1,
         worker_id=5,
         side_channels=[],
-        file_name="Builds\\5ENVSIMPLE\DodgeBallEnv.exe",
+        file_name="Builds\EliminationEasy60\DodgeBallEnv.exe",
+    )
+    env_medium = UE(
+        seed=1,
+        worker_id=5,
+        side_channels=[],
+        file_name="Builds\EliminationMedium60\DodgeBallEnv.exe",
+    )
+    env_hard = UE(
+        seed=1,
+        worker_id=5,
+        side_channels=[],
+        file_name="Builds\EliminationHard60\DodgeBallEnv.exe",
     )
 else:
-    env = UE(seed=1, side_channels=[])
+    env_easy = UE(seed=1, side_channels=[])
 
-env.reset()  # Resets the environment ready for the next simulation
+env_easy.reset()  # Resets the environment ready for the next simulation
 
-behavior_name_purple = list(env.behavior_specs)[0]
-if len(list(env.behavior_specs)) > 1:
-    behavior_name_blue = list(env.behavior_specs)[1]
-    spec_blue = env.behavior_specs[behavior_name_blue]
+behavior_name_purple = list(env_easy.behavior_specs)[0]
+if len(list(env_easy.behavior_specs)) > 1:
+    behavior_name_blue = list(env_easy.behavior_specs)[1]
+    spec_blue = env_easy.behavior_specs[behavior_name_blue]
 
-spec_purple = env.behavior_specs[behavior_name_purple]
+spec_purple = env_easy.behavior_specs[behavior_name_purple]
 
 generation = 0
 global stats
@@ -62,7 +74,7 @@ if show_prints:
     print("Number of observations : ", len(spec_purple.observation_specs))
     print(spec_purple.observation_specs[0].observation_type)
 
-    if len(list(env.behavior_specs)) > 1:
+    if len(list(env_easy.behavior_specs)) > 1:
         print(f"Name of the behavior for players : {behavior_name_blue}")
         print("Number of observations : ", len(spec_blue.observation_specs))
         print(spec_blue.observation_specs[0].observation_type)
@@ -80,7 +92,7 @@ def exit_handler():
     with open("result/on_exit/best_genome.pkl", "wb") as w:
         pickle.dump(best_genome_current_generation, w)
     print("EXITING")
-    env.close()
+    env_easy.close()
 
 
 atexit.register(exit_handler)
@@ -102,8 +114,8 @@ def save_progress(statistics):
 def run_unity_training(genomes, cfg, total_reward):
     # Decision Steps is a list of all agents requesting a decision
     # Terminal steps is all agents that has reached a terminal state (finished)
-    decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
-    decision_steps_blue, terminal_steps_blue = env.get_steps(behavior_name_blue)
+    decision_steps_purple, terminal_steps_purple = env_easy.get_steps(behavior_name_purple)
+    decision_steps_blue, terminal_steps_blue = env_easy.get_steps(behavior_name_blue)
     decision_steps = list(decision_steps_blue) + list(decision_steps_purple)
     purple_team = list(decision_steps_purple).copy()
 
@@ -213,26 +225,26 @@ def run_unity_training(genomes, cfg, total_reward):
 
                     # Applying the action to respective agents on both teams
                     if local_to_agent_map[agent] in decision_steps_purple:
-                        env.set_action_for_agent(
+                        env_easy.set_action_for_agent(
                             behavior_name=behavior_name_purple,
                             agent_id=local_to_agent_map[agent],
                             action=action_tuple,
                         )
                     elif local_to_agent_map[agent] in decision_steps_blue:
-                        env.set_action_for_agent(
+                        env_easy.set_action_for_agent(
                             behavior_name=behavior_name_blue,
                             agent_id=local_to_agent_map[agent],
                             action=action_tuple,
                         )
 
         # Move the simulation forward
-        env.step()  # Does not mean 1 step in Unity. Runs until next decision step
+        env_easy.step()  # Does not mean 1 step in Unity. Runs until next decision step
 
         # Get the new simulation results
-        decision_steps_purple, terminal_steps_purple = env.get_steps(
+        decision_steps_purple, terminal_steps_purple = env_easy.get_steps(
             behavior_name_purple
         )
-        decision_steps_blue, terminal_steps_blue = env.get_steps(behavior_name_blue)
+        decision_steps_blue, terminal_steps_blue = env_easy.get_steps(behavior_name_blue)
 
         # Adding agents that has reached terminal steps to removed agents
         if terminal_steps_blue:
@@ -312,7 +324,7 @@ def run_unity_training(genomes, cfg, total_reward):
             done = True
         
     # Clean the environment for a new generation.
-    env.reset()
+    env_easy.reset()
     return total_reward
 
 
@@ -392,7 +404,7 @@ def run_agent_mapoca(genomes, cfg):
     """
     # Decision Steps is a list of all agents requesting a decision
     # Terminal steps is all agents that has reached a terminal state (finished)
-    decision_steps_purple, terminal_steps_purple = env.get_steps(behavior_name_purple)
+    decision_steps_purple, terminal_steps_purple = env_easy.get_steps(behavior_name_purple)
     decision_steps = list(decision_steps_purple)
     print(
         f"Decision steps list first element: {decision_steps[0]}, type: {type(decision_steps[0])}"
@@ -488,17 +500,17 @@ def run_agent_mapoca(genomes, cfg):
 
                     # Applying the action to respective agents on both teams
                     if local_to_agent_map[agent] in decision_steps_purple:
-                        env.set_action_for_agent(
+                        env_easy.set_action_for_agent(
                             behavior_name=behavior_name_purple,
                             agent_id=local_to_agent_map[agent],
                             action=action_tuple,
                         )
 
         # Move the simulation forward
-        env.step()  # Does not mean 1 step in Unity. Runs until next decision step
+        env_easy.step()  # Does not mean 1 step in Unity. Runs until next decision step
 
         # Get the new simulation results
-        decision_steps_purple, terminal_steps_purple = env.get_steps(
+        decision_steps_purple, terminal_steps_purple = env_easy.get_steps(
             behavior_name_purple
         )
 
@@ -575,7 +587,7 @@ def run_agent_mapoca(genomes, cfg):
             pickle.dump(best_genome_current_generation, f)
 
     # Clean the environment for a new generation.
-    env.reset()
+    env_easy.reset()
     print("\nFinished generation")
 
 
@@ -589,7 +601,7 @@ def run_agent_sim(genome, cfg):
     for gen in range(50):
         # Decision Steps is a list of all agents requesting a decision
         # Terminal steps is all agents that has reached a terminal state (finished)
-        decision_steps, terminal_steps = env.get_steps(behavior_name_purple)
+        decision_steps, terminal_steps = env_easy.get_steps(behavior_name_purple)
         policy = neat.nn.FeedForwardNetwork.create(genome, cfg)
 
         global generation
@@ -633,16 +645,16 @@ def run_agent_sim(genome, cfg):
                 )
 
                 # Applying the action
-                env.set_action_for_agent(
+                env_easy.set_action_for_agent(
                     behavior_name=behavior_name_purple,
                     agent_id=agent_id,
                     action=action_tuple,
                 )
 
             # Move the simulation forward
-            env.step()
+            env_easy.step()
 
-            decision_steps, terminal_steps = env.get_steps(behavior_name_purple)
+            decision_steps, terminal_steps = env_easy.get_steps(behavior_name_purple)
 
             if len(decision_steps) > 0:
                 agent_id = list(decision_steps)[0]
@@ -652,7 +664,7 @@ def run_agent_sim(genome, cfg):
                 done = True
 
         # Clean the environment for a new generation.
-        env.reset()
+        env_easy.reset()
 
 
 if __name__ == "__main__":
