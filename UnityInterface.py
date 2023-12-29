@@ -15,52 +15,55 @@ built_game = True  # Is the game built into a .exe or .app
 sim_1_agent = False  # Test out a given genome specified in main.
 show_prints = True  # Show certain prints during runtime
 show_plots = False  # Show plots (that pause run) during run, will anyway show at end
-load_from_checkpoint = True  # Load from checkpoint
+load_from_checkpoint = False  # Load from checkpoint
 fixed_opponent = True  # Boolean toggle for fixed opponent
 ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
-max_generations = 150  # Max number of generations per "run"
-env_generations = [300, 600] # what generations to switch to next environment
-save_interval = 30
-checkpoint = "checkpoints/NEAT-checkpoint-775"  # Checkpoint name
+max_generations = 900  # Max number of generations per "run"
+intervall_generations = 20 # Number of generations to run before changing opponent to best seen individual
+env_generations = [200, 500] #[300, 600] # what generations to switch to next environment
+save_interval = 40
+max_step = 500 # max step in a unity game
+checkpoint = "checkpoints/NEAT-checkpoint-0"  # Checkpoint name
 genome_to_load = (
     "result/best_40_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
 )
 save_genome_dest = (
-    "result/best_150_genome.pkl"  # Save destination once the algorithm finishes
+    "result/christmas_run/best_150_genome.pkl"  # Save destination once the algorithm finishes
 )
 save_training_progress_prefix = "result/fitness/"
 fixed_policy = None  # The actual fixed policy
 best_genome_current_generation = (
     None  # Continually saving the best genome for training progress when exiting
 )
+p = None # Population
 
 if built_game:
-    env_easy = UE(
+    env_easy = UE( # should change to small field without bushes
         seed=1,
         worker_id=5,
         side_channels=[],
-        file_name="Builds\EliminationEasy60\DodgeBallEnv.exe",
+        file_name= "Builds\\Elimination_easy_75\\UnityEnvironment.exe",
     )
     env_medium = UE(
         seed=1,
-        worker_id=5,
+        worker_id=6,
         side_channels=[],
-        file_name="Builds\EliminationMedium60\DodgeBallEnv.exe",
+        file_name="Builds\\Elimination_medium_75\\UnityEnvironment.exe",
     )
     env_hard = UE(
         seed=1,
-        worker_id=5,
+        worker_id=7,
         side_channels=[],
-        file_name="Builds\EliminationHard60\DodgeBallEnv.exe",
+        file_name="Builds\\Elimination_hard_75\\UnityEnvironment.exe",
     )
+    env_medium.reset()
+    env_hard.reset()
 else:
     env_easy = UE(seed=1, side_channels=[])
 
 env_easy.reset()  # Resets the environment ready for the next simulation
-env_medium.reset()
-env_hard.reset()
 
 
 behavior_name_purple = list(env_easy.behavior_specs)[0]
@@ -152,8 +155,10 @@ def run_unity_training(genomes, cfg, total_reward, env):
         g.fitness = 0
 
     done = False  # For the tracked_agent
+    step_num = 0
 
-    while not done:
+    while (not done) and step_num < max_step:
+        step_num += 1
 
         # Store actions for each agent with 5 actions per agent (3 continuous and 2 discrete)
         actions = np.zeros(
@@ -162,7 +167,7 @@ def run_unity_training(genomes, cfg, total_reward, env):
 
         # Concatenate all the observation data BESIDES obs number 3 (OtherAgentsData)
         nn_input = np.zeros(
-            shape=(agent_count, 364)
+            shape=(agent_count, 1424)
         )  # 23 in size because of the agent IDs going up to 22.
 
         for agent in range(
@@ -176,9 +181,15 @@ def run_unity_training(genomes, cfg, total_reward, env):
                 continue  # Does not exist in any decision steps, run next agent.
 
             step = decision_steps[local_to_agent_map[agent]]
-            nn_input[agent] = np.concatenate(
-                (step.obs[0], step.obs[1], step.obs[3], step.obs[4], step.obs[5])
-            )
+            try:
+                nn_input[agent] = np.concatenate(
+                    (step.obs[1], step.obs[2], step.obs[3], step.obs[4], step.obs[5])
+                )
+            except Exception as e:
+                error_string = ""
+                error_string += f"Error with agent {agent}, obs (with {len(step.obs)} elements).\nElement size in obs: 0 ({len(step.obs[0])}), 1 ({len(step.obs[1])}), 2 ({len(step.obs[2])}), 3 ({len(step.obs[3])}), 4 ({len(step.obs[4])}), 5 ({len(step.obs[5])})"
+                error_string += f"\nError: {e}"
+                raise Exception(error_string)
 
         start = time.time()
 
@@ -286,7 +297,7 @@ def run_unity_training(genomes, cfg, total_reward, env):
                         exit()
 
                     total_reward += reward  # Testing purposes (console logging)
-                    if reward > 1.9:
+                    if reward > 1.9 and generation>env_generations[-1]:
                         print(
                             " - Agent: "
                             + str(agent)
@@ -340,10 +351,13 @@ def run_agent(genomes, cfg):
         early_fitness[i] = g.fitness
 
     if generation < env_generations[0]:
+        print("Environment: Easy")
         env = env_easy
     elif generation < env_generations[1]:
+        print("Environment: Medium")
         env = env_medium
     else:
+        print("Environment: Hard")
         env = env_hard
 
     # run run_unity_training such all agents get fitness
@@ -362,14 +376,19 @@ def run_agent(genomes, cfg):
                 break
 
 
-    # for i, g in genomes:
-    #     print(f"ID{i} before {early_fitness[i]} (type: {type(early_fitness[i])}), and after {g.fitness} (type: {type(g.fitness)})")
-
     # Save the best genome from this generation:
     global best_genome_current_generation
-    best_genome_current_generation = max(
-        genomes, key=lambda x: x[1].fitness
-    )  # Save the best genome from this gen
+    # best_genome_current_generation = max(
+    #     genomes, key=lambda x: x[1].fitness
+    # )  # Get the best genome from this gen
+    best_genome_current_generation = p.best_genome
+
+    if generation % intervall_generations == 0:
+        global fixed_genome
+        global fixed_policy
+        fixed_genome = best_genome_current_generation
+        fixed_policy = neat.nn.FeedForwardNetwork.create(fixed_genome, config)
+        print("\nNew opponent from current best genome set")
 
     # Save training progress regularely
     if generation % save_interval == 0:
@@ -673,7 +692,7 @@ def run_agent_sim(genome, cfg):
         env_easy.reset()
 
 
-while __name__ == "__main__":
+if __name__ == "__main__":
 
     # Set configuration file
     config_path = "./config"
