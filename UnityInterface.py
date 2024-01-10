@@ -15,48 +15,48 @@ built_game = True  # Is the game built into a .exe or .app
 sim_1_agent = False  # Test out a given genome specified in main.
 show_prints = True  # Show certain prints during runtime
 show_plots = False  # Show plots (that pause run) during run, will anyway show at end
-load_from_checkpoint = False  # Load from checkpoint
+load_from_checkpoint = True  # Load from checkpoint
 fixed_opponent = True  # Boolean toggle for fixed opponent
 ma_poca_opp = False  # Run training against ma-poca?
 
 # Variables
-max_generations = 900  # Max number of generations per "run"
-intervall_generations = 20 # Number of generations to run before changing opponent to best seen individual
-env_generations = [200, 500] #[300, 600] # what generations to switch to next environment
+max_generations = 1000  # Max number of generations
+intervall_generations = 50 # Number of generations to run before changing opponent to best seen individual
+env_generations = [350, 700] #[300, 600] # what generations to switch to next environment
 save_interval = 40
 max_step = 500 # max step in a unity game
-checkpoint = "checkpoints/NEAT-checkpoint-0"  # Checkpoint name
+checkpoint = "checkpointsV2\NEAT-checkpoint-398"  # Checkpoint name
 genome_to_load = (
-    "result/best_40_genome.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
+    "result\in_progressV2\best_genome400.pkl"  # "result/NewParams100/best_genome.pkl"  # Genome name
 )
 save_genome_dest = (
-    "result/christmas_run/best_150_genome.pkl"  # Save destination once the algorithm finishes
+    "result/second_run_best_genome.pkl"  # Save destination once the algorithm finishes
 )
-save_training_progress_prefix = "result/fitness/"
+save_training_progress_prefix = "result/fitnessV3/"
 fixed_policy = None  # The actual fixed policy
 best_genome_current_generation = (
     None  # Continually saving the best genome for training progress when exiting
 )
-p = None # Population
+p = None # Variable to contain the population
 
 if built_game:
     env_easy = UE( # should change to small field without bushes
         seed=1,
         worker_id=5,
         side_channels=[],
-        file_name= "Builds\\Elimination_easy_75\\UnityEnvironment.exe",
+        file_name= "Builds\\Elimination_medium_hard_75\\UnityEnvironment.exe",
     )
     env_medium = UE(
         seed=1,
         worker_id=6,
         side_channels=[],
-        file_name="Builds\\Elimination_medium_75\\UnityEnvironment.exe",
+        file_name="Builds\\Elimination_hard_75\\UnityEnvironment.exe",
     )
     env_hard = UE(
         seed=1,
         worker_id=7,
         side_channels=[],
-        file_name="Builds\\Elimination_hard_75\\UnityEnvironment.exe",
+        file_name="Builds\\Elimination_hard_hard_75\\UnityEnvironment.exe",
     )
     env_medium.reset()
     env_hard.reset()
@@ -270,25 +270,42 @@ def run_unity_training(genomes, cfg, total_reward, env):
         # Collect reward
         for agent in range(agent_count):
             local_agent = local_to_agent_map[agent]
-            reward = 0
+            total_agent_reward = 0
 
             if local_agent in terminal_steps_purple:
-                reward += terminal_steps_purple[local_agent].reward
+                total_agent_reward += terminal_steps_purple[local_agent].reward
             elif local_agent in decision_steps_purple:
-                reward += decision_steps_purple[local_agent].reward
+                total_agent_reward += decision_steps_purple[local_agent].reward
 
             if local_agent in terminal_steps_blue:
-                reward += terminal_steps_blue[local_agent].reward
+                total_agent_reward += terminal_steps_blue[local_agent].reward
             elif local_agent in decision_steps_blue:
-                reward += decision_steps_blue[local_agent].reward
+                total_agent_reward += decision_steps_blue[local_agent].reward
+
+            # Adjust reward and add reward for more evolved opponent
+            total_agent_reward = total_agent_reward*10
 
             if (
                 fixed_opponent
             ):  # Add reward as long as the agent is not purple in fixed opponent mode.
                 if not (local_agent in purple_team):
+
+                    total_reward += total_agent_reward  # Testing purposes (console logging)
+                    if total_agent_reward > 19 and generation>env_generations[-1]:
+                        print(
+                            " - Agent: "
+                            + str(agent)
+                            + " Fitness: "
+                            + str(genomes[agent][1].fitness)
+                            + " Reward: "
+                            + str(total_agent_reward)
+                        )
+                    if total_agent_reward > 2:
+                        purple_wins += 1
+
                     try:
                         if len(genomes) > agent:
-                            genomes[agent][1].fitness += reward
+                            genomes[agent][1].fitness += total_agent_reward
                         else:
                             continue
                     except IndexError:  # Bad index
@@ -296,21 +313,9 @@ def run_unity_training(genomes, cfg, total_reward, env):
                         print("\nBAD AGENT local index: " + str(agent))
                         exit()
 
-                    total_reward += reward  # Testing purposes (console logging)
-                    if reward > 1.9 and generation>env_generations[-1]:
-                        print(
-                            " - Agent: "
-                            + str(agent)
-                            + " Fitness: "
-                            + str(genomes[agent][1].fitness)
-                            + " Reward: "
-                            + str(reward)
-                        )
-                    if reward > 0.2:
-                        purple_wins += 1
             else:
-                genomes[agent][1].fitness += reward
-                total_reward += reward  # Testing purposes (console logging)
+                genomes[agent][1].fitness += total_agent_reward
+                total_reward += total_agent_reward  # Testing purposes (console logging)
 
 
         # If statement is just there to avoid printing out 0 but doesnt work lol
@@ -332,7 +337,46 @@ def run_unity_training(genomes, cfg, total_reward, env):
         if len(removed_agents) >= agent_count_blue:
             print(".")  # Fix print last status before things are reset
             done = True
-        
+
+    # Add opponent and enviroment bonus
+    bonus = (generation//intervall_generations) * 2 + 20 * (0 if generation<env_generations[0] else (1 if generation<env_generations[1] else 2)) # Bonus for harder environment, and higher opponent bonus
+    for agent in range(agent_count):
+        local_agent = local_to_agent_map[agent]
+
+        if (
+            fixed_opponent
+        ):  # Add reward as long as the agent is not purple in fixed opponent mode.
+            if not (local_agent in purple_team):
+                total_agent_reward = genomes[agent][1].fitness
+
+                if total_agent_reward > 19:
+                    if generation>env_generations[-1]:
+                        print(
+                            " - Agent: "
+                            + str(agent)
+                            + " Fitness: "
+                            + str(genomes[agent][1].fitness)
+                        )
+                    # Save genome
+                    with open(
+                        "result/in_progressV3/genome" + str(genomes[agent][1].key) + "_fitness" + str(genomes[agent][1].fitness) + ".pkl", "wb"
+                    ) as f:
+                        pickle.dump(genomes[agent][1], f)
+                    
+                if total_agent_reward > 2:
+                    purple_wins += 1
+
+                try:
+                    if len(genomes) > agent:
+                        genomes[agent][1].fitness += bonus
+                    else:
+                        continue
+                except IndexError:  # Bad index
+                    print("\nBAD AGENT: " + str(local_to_agent_map[agent]))
+                    print("\nBAD AGENT local index: " + str(agent))
+                    exit()
+
+
     # Clean the environment for a new generation.
     env.reset()
     return total_reward
@@ -396,7 +440,7 @@ def run_agent(genomes, cfg):
         visualize.plot_stats(
             stats,
             view=show_plots,
-            filename="result/in_progress/feedforward-fitness"
+            filename="result/in_progressV3/feedforward-fitness"
             + str(generation)
             + ".svg",
             label="ANN",
@@ -404,14 +448,14 @@ def run_agent(genomes, cfg):
         visualize.plot_species(
             stats,
             view=show_plots,
-            filename="result/in_progress/feedforward-speciation"
+            filename="result/in_progressV3/feedforward-speciation"
             + str(generation)
             + ".svg",
             label="ANN",
         )
         save_progress(stats)
         with open(
-            "result/in_progress/best_genome" + str(generation) + ".pkl", "wb"
+            "result/in_progressV3/best_genome" + str(generation) + ".pkl", "wb"
         ) as f:
             pickle.dump(best_genome_current_generation, f)
 
@@ -718,7 +762,7 @@ if __name__ == "__main__":
             neat.Checkpointer(
                 generation_interval=25,
                 time_interval_seconds=2400,
-                filename_prefix="checkpoints/NEAT-checkpoint-",
+                filename_prefix="checkpointsV3/NEAT-checkpoint-",
             )
         )
 

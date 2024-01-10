@@ -4,6 +4,7 @@
 
 # Files created from the NEAT algorithm 
 checkpoints/*
+checkpointsV2/*
 # Check further what this is!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 result/fitness/*
 # Graphs of fitness and speciation in run
