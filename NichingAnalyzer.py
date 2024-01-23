@@ -1,6 +1,7 @@
 import pickle
 import neat
 
+# TODO Gather genomes from a specified folder instead of listing filenames
 
 genomes_paths = [
     "result\\in_progressV2_400cont\\best_genome200.pkl",
@@ -29,7 +30,19 @@ for g_path in genomes_paths:
 
 
 
-def calculate_distances(genomes, print_d : bool):
+def calculate_distances(genomes : list, print_d : bool):
+    """
+    Calculate and return distances between each genome in the genomes list.
+
+    Parameters:
+    -----------
+    genomes (list): list of NEAT genomes.
+    print_d (bool): whether or not the calculated distances will be printed out.
+
+    Returns:
+    --------
+    Returns a double list with each distance between each genome. The first list will be the distances from the first genome to each genome ect.
+    """
     distances = []
 
     for g in genomes:
@@ -60,7 +73,19 @@ def calculate_distances(genomes, print_d : bool):
 
     return distances
 
-def choose_genomes(genomes):
+def choose_genomes(genomes : list):
+    """
+    Choose genomes from a raw genome list. The choise is dependent on distance and fitness of the genomes.
+    For genomes with a distance lower than the threshold, the genome with the highest fitness is choosen.
+
+    Parameters:
+    -----------
+    genomes (list): list of NEAT genomes.
+
+    Returns:
+    --------
+    Returns a list of genomes that all have a distance between eachother higher than the threshold.
+    """
     choosen_genomes = []
 
     # filter genomes with low distance
